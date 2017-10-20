@@ -208,6 +208,7 @@ void performHuff(ifstream &fin, string fileToRead)
 
 void main()
 {
+
 	string fileToRead = "File";
 	cout << "Enter the name of a file to be read: ";
 	getline(cin, fileToRead);

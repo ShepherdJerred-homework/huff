@@ -59,6 +59,27 @@ void minHeap(vector<hufTableValues> &hufFile, int position, int heapSize)
 	}
 }
 
+void generateByteCodes(vector<hufTableValues> &treeValues, map<char, string> &byteCodes, int position, string byteCode)
+{
+	if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1)
+	{
+		if (treeValues[position].leftPointer != -1)
+		{
+			byteCode += "0";
+			generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, byteCode);
+		}
+		if (treeValues[position].rightPointer != -1)
+		{
+			byteCode += "1";
+			generateByteCodes(treeValues, byteCodes, treeValues[position].rightPointer, byteCode);
+		}
+	}
+	else
+	{
+		byteCodes[treeValues[position].glyph] = byteCode;
+	}
+}
+
 // Sort hufTable by frequency
 bool sortByFrequency(hufTableValues &lhs, hufTableValues &rhs)
 {
@@ -200,6 +221,16 @@ void performHuff(ifstream &fin, string fileToRead)
 
 	//To do
 	//-Generate bit values for leafs based on treeValues table
+
+	map<char, string> byteCodes;
+	string byteCode;
+
+	generateByteCodes(treeValues, byteCodes, 0, byteCode);
+
+	for (auto elem : byteCodes)
+	{
+	std::cout << elem.first << " " << elem.second << "\n";
+	}
 	//-Encode the message
 	//-Output all necessary info to file
 

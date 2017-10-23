@@ -65,13 +65,11 @@ void generateByteCodes(vector<hufTableValues> &treeValues, map<char, string> &by
 	{
 		if (treeValues[position].leftPointer != -1)
 		{
-			byteCode += "0";
-			generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, byteCode);
+			generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, (byteCode + "0"));
 		}
 		if (treeValues[position].rightPointer != -1)
 		{
-			byteCode += "1";
-			generateByteCodes(treeValues, byteCodes, treeValues[position].rightPointer, byteCode);
+			generateByteCodes(treeValues, byteCodes, treeValues[position].rightPointer, (byteCode + "1"));
 		}
 	}
 	else
@@ -214,10 +212,10 @@ void performHuff(ifstream &fin, string fileToRead)
 	treeValues[0].leftPointer = 1;
 	treeValues[0].rightPointer = firstFreeSlot;
 
-	/*for (int i = 0; i < treeValues.size(); i++)
+	for (int i = 0; i < treeValues.size(); i++)
 	{
-		cout << treeValues[i].glyph << " " << treeValues[i].frequency << " " << treeValues[i].leftPointer << " " << treeValues[i].rightPointer << endl;
-	}*/
+		cout << i << ": " << treeValues[i].glyph << " " << treeValues[i].frequency << " " << treeValues[i].leftPointer << " " << treeValues[i].rightPointer << endl;
+	}
 
 	//To do
 	//-Generate bit values for leafs based on treeValues table

@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <iomanip>
 
 using std::map;
 using std::vector;
@@ -197,7 +198,7 @@ vector<huffTableEntry> createHuffmanTable(hufFile &hufFile) {
     return huffTable;
 }
 
-void generateByteCodeTable(vector<huffTableEntry> &huffTable) {
+map<char, string> generateByteCodeTable(vector<huffTableEntry> &huffTable) {
     map<char, string> byteCodes;
     string byteCode;
 
@@ -205,11 +206,65 @@ void generateByteCodeTable(vector<huffTableEntry> &huffTable) {
 
     // Debug statement
     for (auto elem : byteCodes) {
-        std::cout << elem.first << " " << elem.second << "\n";
+        std::cout << elem.first << " " << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << elem.second
+                  << "\n";
+    }
+    return byteCodes;
+}
+
+string encode(hufFile &hufFile, map<char, string> &map) {
+    hufFile.originalFile;
+
+    hufFile.originalFile.seekg(0, ios::beg);
+
+    string s = "";
+    for (int i = 0; i < hufFile.originalFileLength; i++) {
+        unsigned char c[1];
+        hufFile.originalFile.read((char *) c, 1);
+        hufFile.originalFile.seekg(0, 1);
+
+        int asciiValue = getAsciiValue(c[0]);
+
+        cout << "ASCII: " << asciiValue << endl << endl;
+        string byteCode = map[asciiValue];
+        cout <<  "BC: " <<byteCode << endl << endl;
+        s += byteCode;
+    }
+
+    cout << "S" << s << endl;
+    return s;
+}
+
+unsigned char encodeByte(string byte) {
+    // byte to be encoded
+    unsigned char byte1 = '\0';
+    // length of huffman code
+    int bitstringLength = byte.length();
+
+    // building an encoded byte from right to left
+    int cnt = 0;
+    for (int i = 0; i < bitstringLength; i++) {
+        // is the bit "on"?
+        if (byte[i] == '1')
+            // turn the bit on using the OR bitwise operator
+            byte1 = byte1 | (int) pow(2.0, cnt);
+        cnt++;
+    }
+    return byte1;
+}
+
+void encodeMessageToBytes(string &message) {
+    for (unsigned i = 0; i < message.length(); i += 8) {
+        cout << message.substr(i, 8) << endl;
+
+        // TODO handle message not being divisble by 8
+
+        unsigned char c = encodeByte(message.substr(i, 8));
+        cout << c << endl;
     }
 }
 
-void run(const string &fileToRead) {
+void compressFile(const string &fileToRead) {
 
     hufFile hufFile;
     hufFile.name = fileToRead;
@@ -217,19 +272,20 @@ void run(const string &fileToRead) {
 
     loadFileContents(hufFile);
     vector<huffTableEntry> huffTable = createHuffmanTable(hufFile);
-    generateByteCodeTable(huffTable);
+    map<char, string> encodingMap = generateByteCodeTable(huffTable);
 
-    // TODO
-    // Generate bit values for leafs based on huffTable table
-    // Encode the message
+    string message = encode(hufFile, encodingMap);
+
+    encodeMessageToBytes(message);
+
     // Output all necessary info to file
 
 //    createAndOutputHufFile(hufFile, hufFile.originalFileLength);
 }
 
 void main() {
-    string fileToRead;
-    cout << "Enter the name of a file to be read: ";
-    getline(cin, fileToRead);
-    run(fileToRead);
+//    string fileToRead;
+//    cout << "Enter the name of a file to be read: ";
+//    getline(cin, fileToRead);
+    compressFile("Test.txt");
 }

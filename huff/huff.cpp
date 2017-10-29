@@ -1,255 +1,235 @@
 #include <iostream>
-#include <iomanip>
 #include <fstream>
-#include <string>
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <string>
 
-using namespace std;
+using std::map;
+using std::vector;
+using std::string;
 
+using std::ofstream;
+using std::ifstream;
+using std::ios;
 
-//Single entry in huffman table has a glyph, frequency, left pointer and right pointer
-struct hufTableValues
-{
-	int glyph = -1;
-	int frequency = 0;
-	int leftPointer = -1;
-	int rightPointer = -1;
+using std::cin;
+using std::cout;
+using std::endl;
+
+// Single entry in huffman table has a glyph, frequency, left pointer and right pointer
+struct huffTableEntry {
+    int glyph = -1;
+    int frequency = 0;
+    int leftPointer = -1;
+    int rightPointer = -1;
 };
 
-//Probably unnecessary, and will likely need to be changed for sake of speed, but just had it here to keep things organized
-struct hufFile
-{
-	int nameLength;
-	string Name;
-	int hufTableLength;
-	map<int, int> fileValues;
-	unsigned char* contents;
+// Probably unnecessary, and will likely need to be changed for sake of speed, but just had it here to keep things organized
+struct hufFile {
+    int nameLength;
+    string name;
+    int numberOfGlyphs;
+    ifstream originalFile;
+    double originalFileLength;
 };
 
+// Min heaping
+// Marks current position as smallest, gets left and right children. If left child is not outside the heap
+// compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
+// with right child. If smallest is not equal to the original position fed in, switch the values for current position and the
+// smallest value. Then re-check (which may be unnecessary...I can't remember why that's there)
+void minHeap(vector<huffTableEntry> &hufFile, int position, int heapSize) {
+    int smallest = position;
+    int left = 2 * position + 1;
+    int right = 2 * position + 2;
 
-//Min heaping
-//Marks current position as smallest, gets left and right children. If left child is not outside the heap
-//compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
-//with right child. If smallest is not equal to the original position fed in, switch the values for current position and the 
-//smallest value. Then re-check (which may be unnecessary...I can't remember why that's there)
-void minHeap(vector<hufTableValues> &hufFile, int position, int heapSize)
-{
-	int smallest = position;
-	int left = 2 * position + 1;
-	int right = 2 * position + 2;
+    if (left <= heapSize && hufFile[left].frequency < hufFile[smallest].frequency) {
+        smallest = left;
+    }
 
-	if (left <= heapSize && hufFile[left].frequency < hufFile[smallest].frequency)
-	{
-		smallest = left;
-	}
+    if (right <= heapSize && hufFile[right].frequency < hufFile[smallest].frequency) {
+        smallest = right;
+    }
 
-	if (right <= heapSize && hufFile[right].frequency < hufFile[smallest].frequency)
-	{
-		smallest = right;
-	}
-
-	if (smallest != position)
-	{
-		hufTableValues temp = hufFile[position];
-		hufFile[position] = hufFile[smallest];
-		hufFile[smallest] = temp;
-		minHeap(hufFile, smallest, heapSize);
-	}
+    if (smallest != position) {
+        huffTableEntry temp = hufFile[position];
+        hufFile[position] = hufFile[smallest];
+        hufFile[smallest] = temp;
+        minHeap(hufFile, smallest, heapSize);
+    }
 }
 
-void generateByteCodes(vector<hufTableValues> &treeValues, map<char, string> &byteCodes, int position, string byteCode)
-{
-	if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1)
-	{
-		if (treeValues[position].leftPointer != -1)
-		{
-			generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, (byteCode + "0"));
-		}
-		if (treeValues[position].rightPointer != -1)
-		{
-			generateByteCodes(treeValues, byteCodes, treeValues[position].rightPointer, (byteCode + "1"));
-		}
-	}
-	else
-	{
-		byteCodes[treeValues[position].glyph] = byteCode;
-	}
+void
+generateByteCodes(vector<huffTableEntry> &treeValues, map<char, string> &byteCodes, int position, string byteCode) {
+    if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1) {
+        if (treeValues[position].leftPointer != -1) {
+            generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, (byteCode + "0"));
+        }
+        if (treeValues[position].rightPointer != -1) {
+            generateByteCodes(treeValues, byteCodes, treeValues[position].rightPointer, (byteCode + "1"));
+        }
+    } else {
+        byteCodes[treeValues[position].glyph] = byteCode;
+    }
 }
 
 // Sort hufTable by frequency
-bool sortByFrequency(hufTableValues &lhs, hufTableValues &rhs)
-{
-	return lhs.frequency < rhs.frequency;
+bool sortByFrequency(huffTableEntry &lhs, huffTableEntry &rhs) {
+    return lhs.frequency < rhs.frequency;
 }
 
-void createAndOutputHufFile(hufFile hufFileInfo, double length)
-{
-	//Strips away any extension from filename. If there isn't one, then just creates
-	//a copy of the original filename.
-	int pos = hufFileInfo.Name.find_last_of(".");
-	string fileName = hufFileInfo.Name.substr(0, pos);
+void createAndOutputHufFile(hufFile hufFileInfo, double length) {
+    // Strips away any extension from filename. If there isn't one, then just creates
+    // a copy of the original filename.
+    int pos = hufFileInfo.name.find_last_of(".");
+    string fileName = hufFileInfo.name.substr(0, pos);
 
-	string hufFile = fileName + ".huf";
+    string hufFile = fileName + ".huf";
 
-	ofstream fout(hufFile, ios::out);
-
+    ofstream fout(hufFile, ios::out);
 }
 
-void performHuff(ifstream &fin, string fileToRead)
-{
-	hufFile hufFileInfo;
-	hufFileInfo.Name = fileToRead;
-	hufFileInfo.nameLength = fileToRead.length();
-	//Find how long the file is, store that number, and return to the beginning of the file
-	fin.seekg(0, fin.end);
-	double length = fin.tellg();
-	fin.seekg(0, fin.beg);
-
-	//Create an unsigned char array to hold the contents of memory
-	hufFileInfo.contents = new unsigned char[length];
-	fin.read((char*)hufFileInfo.contents, length);
-
-	//Putting values into a map and incrementing repeat offenders
-	for (int i = 0; i < length; i++)
-	{
-		hufFileInfo.fileValues[(int)hufFileInfo.contents[i]]++;
-	}
-
-	//Adding the eof character
-	hufFileInfo.fileValues[256] = 1;
-
-	/*for (auto elem : hufFileInfo.fileValues)
-	{
-	std::cout << elem.first << " " << elem.second << "\n";
-	}*/
-
-	//Gets size to use later
-	int fileValuesSize = hufFileInfo.fileValues.size();
-
-	//Creates a vector thats as big as we need so that it can be sorted by value
-	vector<hufTableValues> treeValues(fileValuesSize + (fileValuesSize - 1));
-
-	//Adds map values to vector
-	int arrayLocation = 0;
-	for (auto elem : hufFileInfo.fileValues)
-	{
-		treeValues[arrayLocation].glyph = elem.first;
-		treeValues[arrayLocation].frequency = elem.second;
-		arrayLocation++;
-	}
-
-	//Sorts vector
-	sort(treeValues.begin(), treeValues.begin() + fileValuesSize, sortByFrequency);
-
-
-	//Creating the full huffman table
-	int heapEnd = fileValuesSize - 1;
-	int firstFreeSlot = fileValuesSize;
-	int marked;
-	//Stops 2 early because the last merge doesn't need to be this intense
-	for (int i = 0; i < (fileValuesSize - 2); i++)
-	{
-		//Pieces of commented out code are for watching the table change and double checking it's right
-		//I looked it over once already and it seems ok, I just don't wanna type all this junk out again
-		//if something breaks
-		/*hufTableValues tester;
-		tester.glyph = 0;
-		tester.frequency = 0;
-		tester.leftPointer = 0;
-		tester.rightPointer = 0;
-		for (int j = 0; j < treeValues.size(); j++)
-		{
-		cout << treeValues[j].glyph << " " << treeValues[j].frequency << " " << treeValues[j].leftPointer << " " << treeValues[j].rightPointer << endl;
-		}
-		cout << endl << endl;*/
-		marked = (treeValues[1].frequency < treeValues[2].frequency) ? 1 : 2;
-		treeValues[firstFreeSlot] = treeValues[marked];
-		treeValues[marked] = treeValues[heapEnd];
-		/*treeValues[heapEnd] = tester;*/
-		/*for (int j = 0; j < treeValues.size(); j++)
-		{
-		cout << treeValues[j].glyph << " " << treeValues[j].frequency << " " << treeValues[j].leftPointer << " " << treeValues[j].rightPointer << endl;
-		}
-		cout << endl << endl;*/
-		for (int k = (heapEnd - 1) / 2; k >= 0; k--)
-		{
-			minHeap(treeValues, k, heapEnd - 1);
-		}
-		/*for (int j = 0; j < treeValues.size(); j++)
-		{
-		cout << treeValues[j].glyph << " " << treeValues[j].frequency << " " << treeValues[j].leftPointer << " " << treeValues[j].rightPointer << endl;
-		}
-		cout << endl << endl;*/
-		treeValues[heapEnd] = treeValues[0];
-		treeValues[0].glyph = -1;
-		treeValues[0].frequency = treeValues[heapEnd].frequency + treeValues[firstFreeSlot].frequency;
-		treeValues[0].leftPointer = heapEnd;
-		treeValues[0].rightPointer = firstFreeSlot;
-		/*for (int j = 0; j < treeValues.size(); j++)
-		{
-		cout << treeValues[j].glyph << " " << treeValues[j].frequency << " " << treeValues[j].leftPointer << " " << treeValues[j].rightPointer << endl;
-		}
-		cout << endl << endl;*/
-		for (int l = (heapEnd - 1) / 2; l >= 0; l--)
-		{
-			minHeap(treeValues, l, heapEnd - 1);
-		}
-		/*for (int j = 0; j < treeValues.size(); j++)
-		{
-		cout << treeValues[j].glyph << " " << treeValues[j].frequency << " " << treeValues[j].leftPointer << " " << treeValues[j].rightPointer << endl;
-		}
-		cout << endl << endl;*/
-		heapEnd--;
-		firstFreeSlot++;
-	}
-
-	//Last merge
-	treeValues[firstFreeSlot] = treeValues[0];
-	treeValues[0].glyph = -1;
-	treeValues[0].frequency = treeValues[1].frequency + treeValues[firstFreeSlot].frequency;
-	treeValues[0].leftPointer = 1;
-	treeValues[0].rightPointer = firstFreeSlot;
-
-	for (int i = 0; i < treeValues.size(); i++)
-	{
-		cout << i << ": " << treeValues[i].glyph << " " << treeValues[i].frequency << " " << treeValues[i].leftPointer << " " << treeValues[i].rightPointer << endl;
-	}
-
-	//To do
-	//-Generate bit values for leafs based on treeValues table
-
-	map<char, string> byteCodes;
-	string byteCode;
-
-	generateByteCodes(treeValues, byteCodes, 0, byteCode);
-
-	for (auto elem : byteCodes)
-	{
-	std::cout << elem.first << " " << elem.second << "\n";
-	}
-	//-Encode the message
-	//-Output all necessary info to file
-
-	createAndOutputHufFile(hufFileInfo, length);
+inline int getAsciiValue(unsigned char c) {
+    return (int) c;
 }
 
-void main()
-{
+// TODO close file
+// TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
+void loadFileContents(hufFile &hufFile) {
+    hufFile.originalFile = ifstream(hufFile.name, ios::in | ios::binary);
 
-	string fileToRead = "File";
-	cout << "Enter the name of a file to be read: ";
-	getline(cin, fileToRead);
+    // Find how long the file is, store that number, and return to the beginning of the file
+    hufFile.originalFile.seekg(0, hufFile.originalFile.end);
+    hufFile.originalFileLength = hufFile.originalFile.tellg();
+    hufFile.originalFile.seekg(0, hufFile.originalFile.beg);
+}
 
-	ifstream fin(fileToRead, ios::in | ios::binary);
-	if (fin)
-	{
-		performHuff(fin, fileToRead);
-		fin.close();
-	}
-	else
-	{
-		cout << endl << "There was an error opening the file" << endl << endl;
-	}
+map<int, int> getGlyphFrequencies(hufFile &hufFile) {
+    map<int, int> glyphFrequencies;
+
+    hufFile.originalFile.seekg(0, ios::beg);
+
+    // Putting values into a map and incrementing repeat offenders
+    for (int i = 0; i < hufFile.originalFileLength; i++) {
+        unsigned char c[1];
+        hufFile.originalFile.read((char *) c, 1);
+        hufFile.originalFile.seekg(0, 1);
+
+        int asciiValue = getAsciiValue(c[0]);
+        glyphFrequencies[asciiValue]++;
+    }
+
+    // Adding the eof character
+    glyphFrequencies[256] = 1;
+
+    return glyphFrequencies;
+}
+
+
+// TODO find better name
+vector<huffTableEntry> createSortedVectorFromFile(hufFile &hufFile) {
+    map<int, int> glyphFrequencies = getGlyphFrequencies(hufFile);
+
+    hufFile.numberOfGlyphs = glyphFrequencies.size();
+
+    // Creates a vector that's as big as we need so that it can be sorted by value
+    vector<huffTableEntry> huffTableVector(hufFile.numberOfGlyphs + (hufFile.numberOfGlyphs - 1));
+
+    // Put map into vector
+    int arrayLocation = 0;
+    for (auto entry : glyphFrequencies) {
+        huffTableVector[arrayLocation].glyph = entry.first;
+        huffTableVector[arrayLocation].frequency = entry.second;
+        arrayLocation++;
+    }
+
+    sort(huffTableVector.begin(), huffTableVector.begin() + hufFile.numberOfGlyphs, sortByFrequency);
+
+    return huffTableVector;
+}
+
+vector<huffTableEntry> createHuffmanTable(hufFile &hufFile) {
+    vector<huffTableEntry> huffTable = createSortedVectorFromFile(hufFile);
+
+    // Creating the full huffman table
+    int heapEnd = hufFile.numberOfGlyphs - 1;
+    int firstFreeSlot = hufFile.numberOfGlyphs;
+    int marked;
+
+    // Stops 2 early because the last merge doesn't need to be this intense
+    for (int i = 0; i < (hufFile.numberOfGlyphs - 2); i++) {
+        marked = (huffTable[1].frequency < huffTable[2].frequency) ? 1 : 2;
+        huffTable[firstFreeSlot] = huffTable[marked];
+        huffTable[marked] = huffTable[heapEnd];
+
+        for (int k = (heapEnd - 1) / 2; k >= 0; k--) {
+            minHeap(huffTable, k, heapEnd - 1);
+        }
+
+        huffTable[heapEnd] = huffTable[0];
+        huffTable[0].glyph = -1;
+        huffTable[0].frequency = huffTable[heapEnd].frequency + huffTable[firstFreeSlot].frequency;
+        huffTable[0].leftPointer = heapEnd;
+        huffTable[0].rightPointer = firstFreeSlot;
+
+        for (int l = (heapEnd - 1) / 2; l >= 0; l--) {
+            minHeap(huffTable, l, heapEnd - 1);
+        }
+
+        heapEnd--;
+        firstFreeSlot++;
+    }
+
+    // Last merge
+    huffTable[firstFreeSlot] = huffTable[0];
+    huffTable[0].glyph = -1;
+    huffTable[0].frequency = huffTable[1].frequency + huffTable[firstFreeSlot].frequency;
+    huffTable[0].leftPointer = 1;
+    huffTable[0].rightPointer = firstFreeSlot;
+
+    for (int i = 0; i < huffTable.size(); i++) {
+        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
+             << huffTable[i].leftPointer
+             << " " << huffTable[i].rightPointer << endl;
+    }
+
+    return huffTable;
+}
+
+void generateByteCodeTable(vector<huffTableEntry> &huffTable) {
+    map<char, string> byteCodes;
+    string byteCode;
+
+    generateByteCodes(huffTable, byteCodes, 0, byteCode);
+
+    // Debug statement
+    for (auto elem : byteCodes) {
+        std::cout << elem.first << " " << elem.second << "\n";
+    }
+}
+
+void run(const string &fileToRead) {
+
+    hufFile hufFile;
+    hufFile.name = fileToRead;
+    hufFile.nameLength = fileToRead.length();
+
+    loadFileContents(hufFile);
+    vector<huffTableEntry> huffTable = createHuffmanTable(hufFile);
+    generateByteCodeTable(huffTable);
+
+    // TODO
+    // Generate bit values for leafs based on huffTable table
+    // Encode the message
+    // Output all necessary info to file
+
+//    createAndOutputHufFile(hufFile, hufFile.originalFileLength);
+}
+
+void main() {
+    string fileToRead;
+    cout << "Enter the name of a file to be read: ";
+    getline(cin, fileToRead);
+    run(fileToRead);
 }

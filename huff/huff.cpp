@@ -25,12 +25,12 @@ struct huffTableEntry {
     int rightPointer = -1;
 };
 
-struct hufFile {
-    int fileNameLength;
+struct fileInfo {
     string fileName;
-    int numberOfGlyphs;
-    ifstream originalFile;
-    double originalFileLength;
+    int fileNameLength;
+    ifstream fileStream;
+    double fileStreamLength;
+    int numberOfGlyphsInFile;
 };
 
 // Min heaping
@@ -38,24 +38,24 @@ struct hufFile {
 // compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
 // with right child. If smallest is not equal to the original position fed in, switch the values for current position and the
 // smallest value. Then re-check (which may be unnecessary...I can't remember why that's there)
-void minHeap(vector<huffTableEntry> &hufFile, int position, int heapSize) {
+void minHeap(vector<huffTableEntry> &fileInfo, int position, int heapSize) {
     int smallest = position;
     int left = 2 * position + 1;
     int right = 2 * position + 2;
 
-    if (left <= heapSize && hufFile[left].frequency < hufFile[smallest].frequency) {
+    if (left <= heapSize && fileInfo[left].frequency < fileInfo[smallest].frequency) {
         smallest = left;
     }
 
-    if (right <= heapSize && hufFile[right].frequency < hufFile[smallest].frequency) {
+    if (right <= heapSize && fileInfo[right].frequency < fileInfo[smallest].frequency) {
         smallest = right;
     }
 
     if (smallest != position) {
-        huffTableEntry temp = hufFile[position];
-        hufFile[position] = hufFile[smallest];
-        hufFile[smallest] = temp;
-        minHeap(hufFile, smallest, heapSize);
+        huffTableEntry temp = fileInfo[position];
+        fileInfo[position] = fileInfo[smallest];
+        fileInfo[smallest] = temp;
+        minHeap(fileInfo, smallest, heapSize);
     }
 }
 
@@ -78,15 +78,15 @@ bool sortByFrequency(huffTableEntry &lhs, huffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
 }
 
-void createAndOutputHufFile(hufFile hufFileInfo, double length) {
+void createAndOutputfileInfo(fileInfo fileInfoInfo, double length) {
     // Strips away any extension from filename. If there isn't one, then just creates
     // a copy of the original filename.
-    int pos = hufFileInfo.fileName.find_last_of(".");
-    string fileName = hufFileInfo.fileName.substr(0, pos);
+    int pos = fileInfoInfo.fileName.find_last_of(".");
+    string fileName = fileInfoInfo.fileName.substr(0, pos);
 
-    string hufFile = fileName + ".huf";
+    string fileInfo = fileName + ".huf";
 
-    ofstream fout(hufFile, ios::out);
+    ofstream fout(fileInfo, ios::out);
 }
 
 int getAsciiValue(unsigned char c) {
@@ -95,25 +95,25 @@ int getAsciiValue(unsigned char c) {
 
 // TODO close file
 // TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
-void loadFileContents(hufFile &hufFile) {
-    hufFile.originalFile = ifstream(hufFile.fileName, ios::in | ios::binary);
+void loadFileContents(fileInfo &fileInfo) {
+    fileInfo.fileStream = ifstream(fileInfo.fileName, ios::in | ios::binary);
 
     // Find how long the file is, store that number, and return to the beginning of the file
-    hufFile.originalFile.seekg(0, hufFile.originalFile.end);
-    hufFile.originalFileLength = hufFile.originalFile.tellg();
-    hufFile.originalFile.seekg(0, hufFile.originalFile.beg);
+    fileInfo.fileStream.seekg(0, fileInfo.fileStream.end);
+    fileInfo.fileStreamLength = fileInfo.fileStream.tellg();
+    fileInfo.fileStream.seekg(0, fileInfo.fileStream.beg);
 }
 
-map<int, int> getGlyphFrequencies(hufFile &hufFile) {
+map<int, int> getGlyphFrequencies(fileInfo &fileInfo) {
     map<int, int> glyphFrequencies;
 
-    hufFile.originalFile.seekg(0, ios::beg);
+    fileInfo.fileStream.seekg(0, ios::beg);
 
     // Putting values into a map and incrementing repeat offenders
-    for (int i = 0; i < hufFile.originalFileLength; i++) {
+    for (int i = 0; i < fileInfo.fileStreamLength; i++) {
         unsigned char c[1];
-        hufFile.originalFile.read((char *) c, 1);
-        hufFile.originalFile.seekg(0, 1);
+        fileInfo.fileStream.read((char *) c, 1);
+        fileInfo.fileStream.seekg(0, 1);
 
         int asciiValue = getAsciiValue(c[0]);
         glyphFrequencies[asciiValue]++;
@@ -127,13 +127,13 @@ map<int, int> getGlyphFrequencies(hufFile &hufFile) {
 
 
 // TODO find better fileName
-vector<huffTableEntry> createSortedVectorFromFile(hufFile &hufFile) {
-    map<int, int> glyphFrequencies = getGlyphFrequencies(hufFile);
+vector<huffTableEntry> createSortedVectorFromFile(fileInfo &fileInfo) {
+    map<int, int> glyphFrequencies = getGlyphFrequencies(fileInfo);
 
-    hufFile.numberOfGlyphs = glyphFrequencies.size();
+    fileInfo.numberOfGlyphsInFile = glyphFrequencies.size();
 
     // Creates a vector that's as big as we need so that it can be sorted by value
-    vector<huffTableEntry> huffTableVector(hufFile.numberOfGlyphs + (hufFile.numberOfGlyphs - 1));
+    vector<huffTableEntry> huffTableVector(fileInfo.numberOfGlyphsInFile + (fileInfo.numberOfGlyphsInFile - 1));
 
     // Put map into vector
     int arrayLocation = 0;
@@ -143,21 +143,21 @@ vector<huffTableEntry> createSortedVectorFromFile(hufFile &hufFile) {
         arrayLocation++;
     }
 
-    sort(huffTableVector.begin(), huffTableVector.begin() + hufFile.numberOfGlyphs, sortByFrequency);
+    sort(huffTableVector.begin(), huffTableVector.begin() + fileInfo.numberOfGlyphsInFile, sortByFrequency);
 
     return huffTableVector;
 }
 
-vector<huffTableEntry> createHuffmanTable(hufFile &hufFile) {
-    vector<huffTableEntry> huffTable = createSortedVectorFromFile(hufFile);
+vector<huffTableEntry> createHuffmanTable(fileInfo &fileInfo) {
+    vector<huffTableEntry> huffTable = createSortedVectorFromFile(fileInfo);
 
     // Creating the full huffman table
-    int heapEnd = hufFile.numberOfGlyphs - 1;
-    int firstFreeSlot = hufFile.numberOfGlyphs;
+    int heapEnd = fileInfo.numberOfGlyphsInFile - 1;
+    int firstFreeSlot = fileInfo.numberOfGlyphsInFile;
     int marked;
 
     // Stops 2 early because the last merge doesn't need to be this intense
-    for (int i = 0; i < (hufFile.numberOfGlyphs - 2); i++) {
+    for (int i = 0; i < (fileInfo.numberOfGlyphsInFile - 2); i++) {
         marked = (huffTable[1].frequency < huffTable[2].frequency) ? 1 : 2;
         huffTable[firstFreeSlot] = huffTable[marked];
         huffTable[marked] = huffTable[heapEnd];
@@ -210,16 +210,16 @@ map<char, string> generateByteCodeTable(vector<huffTableEntry> &huffTable) {
     return byteCodes;
 }
 
-string encode(hufFile &hufFile, map<char, string> &map) {
-    hufFile.originalFile;
+string encode(fileInfo &fileInfo, map<char, string> &map) {
+    fileInfo.fileStream;
 
-    hufFile.originalFile.seekg(0, ios::beg);
+    fileInfo.fileStream.seekg(0, ios::beg);
 
     string s = "";
-    for (int i = 0; i < hufFile.originalFileLength; i++) {
+    for (int i = 0; i < fileInfo.fileStreamLength; i++) {
         unsigned char c[1];
-        hufFile.originalFile.read((char *) c, 1);
-        hufFile.originalFile.seekg(0, 1);
+        fileInfo.fileStream.read((char *) c, 1);
+        fileInfo.fileStream.seekg(0, 1);
 
         int asciiValue = getAsciiValue(c[0]);
 
@@ -262,28 +262,25 @@ void encodeMessageToBytes(string &message) {
     }
 }
 
-void compressAndWrite(const string &fileName) {
+void main() {
+//    string fileToRead;
+//    cout << "Enter the fileName of a file to be read: ";
+//    getline(cin, fileToRead);
+    string fileName = "Test.txt";
 
-    hufFile hufFile;
-    hufFile.fileName = fileName;
-    hufFile.fileNameLength = fileName.length();
+    fileInfo fileInfo;
+    fileInfo.fileName = fileName;
+    fileInfo.fileNameLength = fileName.length();
 
-    loadFileContents(hufFile);
-    vector<huffTableEntry> huffTable = createHuffmanTable(hufFile);
+    loadFileContents(fileInfo);
+    vector<huffTableEntry> huffTable = createHuffmanTable(fileInfo);
     map<char, string> encodingMap = generateByteCodeTable(huffTable);
 
-    string message = encode(hufFile, encodingMap);
+    string message = encode(fileInfo, encodingMap);
 
     encodeMessageToBytes(message);
 
     // Output all necessary info to file
 
-//    createAndOutputHufFile(hufFile, hufFile.originalFileLength);
-}
-
-void main() {
-//    string fileToRead;
-//    cout << "Enter the fileName of a file to be read: ";
-//    getline(cin, fileToRead);
-    compressAndWrite("Test.txt");
+//    createAndOutputfileInfo(fileInfo, fileInfo.fileStreamLength);
 }

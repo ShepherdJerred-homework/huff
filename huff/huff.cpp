@@ -18,7 +18,6 @@ using std::cin;
 using std::cout;
 using std::endl;
 
-// Single entry in huffman table has a glyph, frequency, left pointer and right pointer
 struct huffTableEntry {
     int glyph = -1;
     int frequency = 0;
@@ -26,10 +25,9 @@ struct huffTableEntry {
     int rightPointer = -1;
 };
 
-// Probably unnecessary, and will likely need to be changed for sake of speed, but just had it here to keep things organized
 struct hufFile {
-    int nameLength;
-    string name;
+    int fileNameLength;
+    string fileName;
     int numberOfGlyphs;
     ifstream originalFile;
     double originalFileLength;
@@ -83,22 +81,22 @@ bool sortByFrequency(huffTableEntry &lhs, huffTableEntry &rhs) {
 void createAndOutputHufFile(hufFile hufFileInfo, double length) {
     // Strips away any extension from filename. If there isn't one, then just creates
     // a copy of the original filename.
-    int pos = hufFileInfo.name.find_last_of(".");
-    string fileName = hufFileInfo.name.substr(0, pos);
+    int pos = hufFileInfo.fileName.find_last_of(".");
+    string fileName = hufFileInfo.fileName.substr(0, pos);
 
     string hufFile = fileName + ".huf";
 
     ofstream fout(hufFile, ios::out);
 }
 
-inline int getAsciiValue(unsigned char c) {
+int getAsciiValue(unsigned char c) {
     return (int) c;
 }
 
 // TODO close file
 // TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
 void loadFileContents(hufFile &hufFile) {
-    hufFile.originalFile = ifstream(hufFile.name, ios::in | ios::binary);
+    hufFile.originalFile = ifstream(hufFile.fileName, ios::in | ios::binary);
 
     // Find how long the file is, store that number, and return to the beginning of the file
     hufFile.originalFile.seekg(0, hufFile.originalFile.end);
@@ -128,7 +126,7 @@ map<int, int> getGlyphFrequencies(hufFile &hufFile) {
 }
 
 
-// TODO find better name
+// TODO find better fileName
 vector<huffTableEntry> createSortedVectorFromFile(hufFile &hufFile) {
     map<int, int> glyphFrequencies = getGlyphFrequencies(hufFile);
 
@@ -227,7 +225,7 @@ string encode(hufFile &hufFile, map<char, string> &map) {
 
         cout << "ASCII: " << asciiValue << endl << endl;
         string byteCode = map[asciiValue];
-        cout <<  "BC: " <<byteCode << endl << endl;
+        cout << "BC: " << byteCode << endl << endl;
         s += byteCode;
     }
 
@@ -264,11 +262,11 @@ void encodeMessageToBytes(string &message) {
     }
 }
 
-void compressFile(const string &fileToRead) {
+void compressAndWrite(const string &fileName) {
 
     hufFile hufFile;
-    hufFile.name = fileToRead;
-    hufFile.nameLength = fileToRead.length();
+    hufFile.fileName = fileName;
+    hufFile.fileNameLength = fileName.length();
 
     loadFileContents(hufFile);
     vector<huffTableEntry> huffTable = createHuffmanTable(hufFile);
@@ -285,7 +283,7 @@ void compressFile(const string &fileToRead) {
 
 void main() {
 //    string fileToRead;
-//    cout << "Enter the name of a file to be read: ";
+//    cout << "Enter the fileName of a file to be read: ";
 //    getline(cin, fileToRead);
-    compressFile("Test.txt");
+    compressAndWrite("Test.txt");
 }

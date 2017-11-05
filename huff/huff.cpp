@@ -109,7 +109,7 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
     }
 
     // Adding the eof character
-    glyphFrequencies[256] = 1;
+    glyphFrequencies[257] = 1;
 
     return glyphFrequencies;
 }
@@ -176,11 +176,11 @@ vector<HuffTableEntry> createHuffmanTable(FileInfo &fileInfo) {
     huffTable[0].leftPointer = 1;
     huffTable[0].rightPointer = firstFreeSlot;
 
-    for (int i = 0; i < huffTable.size(); i++) {
-        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
-             << huffTable[i].leftPointer
-             << " " << huffTable[i].rightPointer << endl;
-    }
+//    for (int i = 0; i < huffTable.size(); i++) {
+//        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
+//             << huffTable[i].leftPointer
+//             << " " << huffTable[i].rightPointer << endl;
+//    }
 
     return huffTable;
 }
@@ -192,10 +192,10 @@ map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
     generateByteCodes(huffTable, byteCodes, 0, byteCode);
 
 //     Debug statement
-    for (auto elem : byteCodes) {
-        std::cout << elem.first << " " << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << elem.second
-                  << "\n";
-    }
+//    for (auto elem : byteCodes) {
+//        std::cout << elem.first << " " << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << elem.second
+//                  << "\n";
+//    }
     return byteCodes;
 }
 
@@ -206,8 +206,6 @@ map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
  * @return An encoded string of 0's and 1's
  */
 string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
-    fileInfo.fileStream;
-
     fileInfo.fileStream.seekg(0, ios::beg);
 
     string s = "";
@@ -268,11 +266,17 @@ string encodeMessageToStringOfBytes(string &message) {
     for (unsigned i = 0; i < message.length(); i += 8) {
 
         string newMessage = message.substr(i, 8);
+        if (newMessage == "") {
+            cout << newMessage;
+            continue;
+        }
+
         if (newMessage.length() < 8 && newMessage.length() > 0) {
             int numberNeeded = 8 - newMessage.length();
             for (int x = 0; x < numberNeeded; x++) {
                 newMessage += "0";
             }
+            break;
         }
 
 //        cout << newMessage << endl;
@@ -319,7 +323,7 @@ void main() {
 //    cout << "Enter the fileName of a file to be read: ";
 //    getline(cin, fileToRead);
 
-    string fileName = "test.txt";
+    string fileName = "KiTTY.exe";
 
     FileInfo fileInfo;
     fileInfo.fileName = fileName;

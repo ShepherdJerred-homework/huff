@@ -33,13 +33,6 @@ struct FileInfo {
     int numberOfGlyphsInFile;
 };
 
-unsigned char reverse(unsigned char b) {
-    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-    b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-    b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-    return b;
-}
-
 // Min heaping
 // Marks current position as smallest, gets left and right children. If left child is not outside the heap
 // compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
@@ -83,27 +76,6 @@ generateByteCodes(vector<HuffTableEntry> &treeValues, map<char, string> &byteCod
 // Sort hufTable by frequency
 bool sortByFrequency(HuffTableEntry &lhs, HuffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
-}
-
-void createAndOutputfileInfo(FileInfo fileInfoInfo, double length, vector<HuffTableEntry> huffTableEntries) {
-    // Strips away any extension from filename. If there isn't one, then just creates
-    // a copy of the original filename.
-    int pos = fileInfoInfo.fileName.find_last_of(".");
-    string fileName = fileInfoInfo.fileName.substr(0, pos);
-
-    string fileInfo = fileName + ".huf";
-
-    ofstream fout(fileInfo, ios::out | ios::binary);
-
-    fout.write((char *) &fileInfoInfo.fileNameLength, sizeof fileInfoInfo.fileNameLength);
-    fout.write((char *) &fileInfo, fileInfo.length());
-    fout.write((char *) &fileInfoInfo.numberOfGlyphsInFile, sizeof fileInfoInfo.numberOfGlyphsInFile);
-    for (int i = 0; i < fileInfoInfo.numberOfGlyphsInFile; i++) {
-        fout.write((char *) &huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
-        fout.write((char *) &huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
-        fout.write((char *) &huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
-    }
-
 }
 
 int getAsciiValue(unsigned char c) {
@@ -308,6 +280,28 @@ string encodeMessageToStringOfBytes(string &message) {
     return bytes;
 }
 
+void createAndOutputFileInfo(FileInfo &fileInfo, vector<HuffTableEntry> &huffTableEntries, string &bytes) {
+    // Strips away any extension from filename. If there isn't one, then just creates
+    // a copy of the original filename.
+    int pos = fileInfo.fileName.find_last_of(".");
+    string fileNameWithoutExtension = fileInfo.fileName.substr(0, pos);
+
+    ofstream fout(fileNameWithoutExtension + ".huf", ios::out | ios::binary);
+
+    fout.write((char *) &fileInfo.fileNameLength, sizeof fileInfo.fileNameLength);
+    fout.write((char *) &fileInfo.fileName, fileInfo.fileName.size());
+    fout.write((char *) &fileInfo.numberOfGlyphsInFile, sizeof fileInfo.numberOfGlyphsInFile);
+
+    for (int i = 0; i < fileInfo.numberOfGlyphsInFile; i++) {
+        fout.write((char *) &huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
+        fout.write((char *) &huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
+        fout.write((char *) &huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
+    }
+
+    fout.write((char *) &bytes, bytes.size());
+
+}
+
 void main() {
 
 //    string fileToRead;
@@ -326,9 +320,7 @@ void main() {
 
     string message = encodeMessageToStringOfBits(fileInfo, encodingMap);
 
-    encodeMessageToStringOfBytes(message);
+    string bytes = encodeMessageToStringOfBytes(message);
 
-    // Output all necessary info to file
-
-//    createAndOutputfileInfo(FileInfo, FileInfo.fileStreamLength, huffTable);
+    createAndOutputFileInfo(fileInfo, huffTable, bytes);
 }

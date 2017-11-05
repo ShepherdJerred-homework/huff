@@ -191,7 +191,7 @@ map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
 
     generateByteCodes(huffTable, byteCodes, 0, byteCode);
 
-    // Debug statement
+//     Debug statement
     for (auto elem : byteCodes) {
         std::cout << elem.first << " " << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << elem.second
                   << "\n";
@@ -219,7 +219,7 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
         int asciiValue = getAsciiValue(c[0]);
 
         string byteCode = map[asciiValue];
-        std::reverse(byteCode.begin(), byteCode.end());
+//        std::reverse(byteCode.begin(), byteCode.end());
 
 //        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
 //        cout << "Byte Code: " << byteCode << endl << endl;
@@ -229,10 +229,10 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
 
     // Add the eof character
     string byteCode = map[256];
-    std::reverse(byteCode.begin(), byteCode.end());
+//    std::reverse(byteCode.begin(), byteCode.end());
     s += byteCode;
 
-    cout << "Encoded message:  " << s << endl;
+//    cout << "Encoded message:  " << s << endl;
     return s;
 }
 
@@ -266,17 +266,24 @@ unsigned char encodeByte(string byte) {
 string encodeMessageToStringOfBytes(string &message) {
     string bytes;
     for (unsigned i = 0; i < message.length(); i += 8) {
-        cout << message.substr(i, 8) << endl;
 
-        // TODO handle message not being divisible by 8
-        unsigned char c = encodeByte(message.substr(i, 8));
+        string newMessage = message.substr(i, 8);
+        if (newMessage.length() < 8 && newMessage.length() > 0) {
+            int numberNeeded = 8 - newMessage.length();
+            for (int x = 0; x < numberNeeded; x++) {
+                newMessage += "0";
+            }
+        }
+
+//        cout << newMessage << endl;
+
+        unsigned char c = encodeByte(newMessage);
 
         bytes += c;
 //        cout << "Byte: " << c << endl;
 //        cout << std::hex << "Hex Byte: " << (int) c << endl;
     }
-//    std::reverse(bytes.begin(), bytes.end());
-    cout << "Bytes: " << bytes << endl;
+//    cout << "Bytes: " << bytes << endl;
     return bytes;
 }
 
@@ -296,11 +303,13 @@ void createAndOutputFileInfo(FileInfo &fileInfo, vector<HuffTableEntry> &huffTab
 
     for (int i = 0; i < numberOfTableEntries; i++) {
         fout.write((char *) &huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
-        fout.write((char *) &huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
-        fout.write((char *) &huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
+        fout.write((char *) &huffTableEntries[i].leftPointer, sizeof huffTableEntries[i].leftPointer);
+        fout.write((char *) &huffTableEntries[i].rightPointer, sizeof huffTableEntries[i].rightPointer);
     }
 
-    fout.write((char *) &bytes, bytes.size());
+    fout.write(bytes.c_str(), bytes.size());
+
+    fout.close();
 
 }
 
@@ -310,7 +319,7 @@ void main() {
 //    cout << "Enter the fileName of a file to be read: ";
 //    getline(cin, fileToRead);
 
-    string fileName = "letters.txt";
+    string fileName = "test.txt";
 
     FileInfo fileInfo;
     fileInfo.fileName = fileName;

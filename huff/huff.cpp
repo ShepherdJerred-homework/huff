@@ -18,14 +18,14 @@ using std::cin;
 using std::cout;
 using std::endl;
 
-struct huffTableEntry {
+struct HuffTableEntry {
     int glyph = -1;
     int frequency = 0;
     int leftPointer = -1;
     int rightPointer = -1;
 };
 
-struct fileInfo {
+struct FileInfo {
     string fileName;
     int fileNameLength;
     ifstream fileStream;
@@ -38,7 +38,7 @@ struct fileInfo {
 // compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
 // with right child. If smallest is not equal to the original position fed in, switch the values for current position and the
 // smallest value. Then re-check (which may be unnecessary...I can't remember why that's there)
-void minHeap(vector<huffTableEntry> &fileInfo, int position, int heapSize) {
+void minHeap(vector<HuffTableEntry> &fileInfo, int position, int heapSize) {
     int smallest = position;
     int left = 2 * position + 1;
     int right = 2 * position + 2;
@@ -52,7 +52,7 @@ void minHeap(vector<huffTableEntry> &fileInfo, int position, int heapSize) {
     }
 
     if (smallest != position) {
-        huffTableEntry temp = fileInfo[position];
+        HuffTableEntry temp = fileInfo[position];
         fileInfo[position] = fileInfo[smallest];
         fileInfo[smallest] = temp;
         minHeap(fileInfo, smallest, heapSize);
@@ -60,7 +60,7 @@ void minHeap(vector<huffTableEntry> &fileInfo, int position, int heapSize) {
 }
 
 void
-generateByteCodes(vector<huffTableEntry> &treeValues, map<char, string> &byteCodes, int position, string byteCode) {
+generateByteCodes(vector<HuffTableEntry> &treeValues, map<char, string> &byteCodes, int position, string byteCode) {
     if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1) {
         if (treeValues[position].leftPointer != -1) {
             generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, (byteCode + "0"));
@@ -74,11 +74,11 @@ generateByteCodes(vector<huffTableEntry> &treeValues, map<char, string> &byteCod
 }
 
 // Sort hufTable by frequency
-bool sortByFrequency(huffTableEntry &lhs, huffTableEntry &rhs) {
+bool sortByFrequency(HuffTableEntry &lhs, HuffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
 }
 
-void createAndOutputfileInfo(fileInfo fileInfoInfo, double length, vector<huffTableEntry> huffTableEntries) {
+void createAndOutputfileInfo(FileInfo fileInfoInfo, double length, vector<HuffTableEntry> huffTableEntries) {
     // Strips away any extension from filename. If there isn't one, then just creates
     // a copy of the original filename.
     int pos = fileInfoInfo.fileName.find_last_of(".");
@@ -88,16 +88,15 @@ void createAndOutputfileInfo(fileInfo fileInfoInfo, double length, vector<huffTa
 
     ofstream fout(fileInfo, ios::out | ios::binary);
 
-	fout.write((char*)&fileInfoInfo.fileNameLength, sizeof fileInfoInfo.fileNameLength);
-	fout.write((char*)&fileInfo, fileInfo.length());
-	fout.write((char*)&fileInfoInfo.numberOfGlyphsInFile, sizeof fileInfoInfo.numberOfGlyphsInFile);
-	for (int i = 0; i < fileInfoInfo.numberOfGlyphsInFile; i++)
-	{
-		fout.write((char*)&huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
-		fout.write((char*)&huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
-		fout.write((char*)&huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
-	}
-	fout.write((char*)&fileInfoInfo.
+    fout.write((char *) &fileInfoInfo.fileNameLength, sizeof fileInfoInfo.fileNameLength);
+    fout.write((char *) &fileInfo, fileInfo.length());
+    fout.write((char *) &fileInfoInfo.numberOfGlyphsInFile, sizeof fileInfoInfo.numberOfGlyphsInFile);
+    for (int i = 0; i < fileInfoInfo.numberOfGlyphsInFile; i++) {
+        fout.write((char *) &huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
+        fout.write((char *) &huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
+        fout.write((char *) &huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
+    }
+
 }
 
 int getAsciiValue(unsigned char c) {
@@ -106,7 +105,7 @@ int getAsciiValue(unsigned char c) {
 
 // TODO close file
 // TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
-void loadFileContents(fileInfo &fileInfo) {
+void loadFileContents(FileInfo &fileInfo) {
     fileInfo.fileStream = ifstream(fileInfo.fileName, ios::in | ios::binary);
 
     // Find how long the file is, store that number, and return to the beginning of the file
@@ -115,7 +114,7 @@ void loadFileContents(fileInfo &fileInfo) {
     fileInfo.fileStream.seekg(0, fileInfo.fileStream.beg);
 }
 
-map<int, int> getGlyphFrequencies(fileInfo &fileInfo) {
+map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
     map<int, int> glyphFrequencies;
 
     fileInfo.fileStream.seekg(0, ios::beg);
@@ -138,13 +137,13 @@ map<int, int> getGlyphFrequencies(fileInfo &fileInfo) {
 
 
 // TODO find better fileName
-vector<huffTableEntry> createSortedVectorFromFile(fileInfo &fileInfo) {
+vector<HuffTableEntry> createSortedVectorFromFile(FileInfo &fileInfo) {
     map<int, int> glyphFrequencies = getGlyphFrequencies(fileInfo);
 
     fileInfo.numberOfGlyphsInFile = glyphFrequencies.size();
 
     // Creates a vector that's as big as we need so that it can be sorted by value
-    vector<huffTableEntry> huffTableVector(fileInfo.numberOfGlyphsInFile + (fileInfo.numberOfGlyphsInFile - 1));
+    vector<HuffTableEntry> huffTableVector(fileInfo.numberOfGlyphsInFile + (fileInfo.numberOfGlyphsInFile - 1));
 
     // Put map into vector
     int arrayLocation = 0;
@@ -159,8 +158,8 @@ vector<huffTableEntry> createSortedVectorFromFile(fileInfo &fileInfo) {
     return huffTableVector;
 }
 
-vector<huffTableEntry> createHuffmanTable(fileInfo &fileInfo) {
-    vector<huffTableEntry> huffTable = createSortedVectorFromFile(fileInfo);
+vector<HuffTableEntry> createHuffmanTable(FileInfo &fileInfo) {
+    vector<HuffTableEntry> huffTable = createSortedVectorFromFile(fileInfo);
 
     // Creating the full huffman table
     int heapEnd = fileInfo.numberOfGlyphsInFile - 1;
@@ -207,7 +206,7 @@ vector<huffTableEntry> createHuffmanTable(fileInfo &fileInfo) {
     return huffTable;
 }
 
-map<char, string> generateByteCodeTable(vector<huffTableEntry> &huffTable) {
+map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
     map<char, string> byteCodes;
     string byteCode;
 
@@ -221,7 +220,13 @@ map<char, string> generateByteCodeTable(vector<huffTableEntry> &huffTable) {
     return byteCodes;
 }
 
-string encode(fileInfo &fileInfo, map<char, string> &map) {
+/**
+ * Reads through every byte in a file, and encodes it using a map
+ * @param fileInfo The fileInfo object to use; contains the bytes to be encoded
+ * @param map The map to encode with
+ * @return An encoded string of 0's and 1's
+ */
+string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
     fileInfo.fileStream;
 
     fileInfo.fileStream.seekg(0, ios::beg);
@@ -234,16 +239,21 @@ string encode(fileInfo &fileInfo, map<char, string> &map) {
 
         int asciiValue = getAsciiValue(c[0]);
 
-        cout << "ASCII: " << asciiValue << endl << endl;
+        cout << "ASCII: " << asciiValue << endl;
         string byteCode = map[asciiValue];
         cout << "BC: " << byteCode << endl << endl;
         s += byteCode;
     }
 
-    cout << "S" << s << endl;
+    cout << "Encoded message:  " << s << endl;
     return s;
 }
 
+/**
+ * Encodes a single byte
+ * @param byte A string of 8 bits
+ * @return A byte
+ */
 unsigned char encodeByte(string byte) {
     // byte to be encoded
     unsigned char byte1 = '\0';
@@ -262,36 +272,42 @@ unsigned char encodeByte(string byte) {
     return byte1;
 }
 
-void encodeMessageToBytes(string &message) {
+/**
+ * Takes a string of bits and converts it to a string of bytes
+ * @param message A string of bits
+ */
+void encodeMessageToStringOfBytes(string &message) {
     for (unsigned i = 0; i < message.length(); i += 8) {
         cout << message.substr(i, 8) << endl;
 
-        // TODO handle message not being divisble by 8
+        // TODO handle message not being divisible by 8
 
         unsigned char c = encodeByte(message.substr(i, 8));
-        cout << c << endl;
+        cout <<  "Byte: " << c << endl;
     }
 }
 
 void main() {
+
 //    string fileToRead;
 //    cout << "Enter the fileName of a file to be read: ";
 //    getline(cin, fileToRead);
+
     string fileName = "Test.txt";
 
-    fileInfo fileInfo;
+    FileInfo fileInfo;
     fileInfo.fileName = fileName;
     fileInfo.fileNameLength = fileName.length();
 
     loadFileContents(fileInfo);
-    vector<huffTableEntry> huffTable = createHuffmanTable(fileInfo);
+    vector<HuffTableEntry> huffTable = createHuffmanTable(fileInfo);
     map<char, string> encodingMap = generateByteCodeTable(huffTable);
 
-    string message = encode(fileInfo, encodingMap);
+    string message = encodeMessageToStringOfBits(fileInfo, encodingMap);
 
-    encodeMessageToBytes(message);
+    encodeMessageToStringOfBytes(message);
 
     // Output all necessary info to file
 
-//    createAndOutputfileInfo(fileInfo, fileInfo.fileStreamLength, huffTable);
+//    createAndOutputfileInfo(FileInfo, FileInfo.fileStreamLength, huffTable);
 }

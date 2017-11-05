@@ -33,6 +33,13 @@ struct FileInfo {
     int numberOfGlyphsInFile;
 };
 
+unsigned char reverse(unsigned char b) {
+    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+    b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+    b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+    return b;
+}
+
 // Min heaping
 // Marks current position as smallest, gets left and right children. If left child is not outside the heap
 // compares its frequency to the smallest frequency. If it is smaller, set left child to the smallest. Then does the same
@@ -239,11 +246,19 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
 
         int asciiValue = getAsciiValue(c[0]);
 
-        cout << "ASCII: " << asciiValue << endl;
         string byteCode = map[asciiValue];
-        cout << "BC: " << byteCode << endl << endl;
+        std::reverse(byteCode.begin(), byteCode.end());
+
+        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
+        cout << "Byte Code: " << byteCode << endl << endl;
+
         s += byteCode;
     }
+
+    // Add the eof character
+    string byteCode = map[256];
+    std::reverse(byteCode.begin(), byteCode.end());
+    s += byteCode;
 
     cout << "Encoded message:  " << s << endl;
     return s;
@@ -276,15 +291,21 @@ unsigned char encodeByte(string byte) {
  * Takes a string of bits and converts it to a string of bytes
  * @param message A string of bits
  */
-void encodeMessageToStringOfBytes(string &message) {
+string encodeMessageToStringOfBytes(string &message) {
+    string bytes;
     for (unsigned i = 0; i < message.length(); i += 8) {
         cout << message.substr(i, 8) << endl;
 
         // TODO handle message not being divisible by 8
-
         unsigned char c = encodeByte(message.substr(i, 8));
-        cout <<  "Byte: " << c << endl;
+
+        bytes += c;
+        cout << "Byte: " << c << endl;
+        cout << std::hex << "Hex Byte: " << (int) c << endl;
     }
+//    std::reverse(bytes.begin(), bytes.end());
+    cout << "Bytes: " << bytes << endl;
+    return bytes;
 }
 
 void main() {

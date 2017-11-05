@@ -78,7 +78,7 @@ bool sortByFrequency(huffTableEntry &lhs, huffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
 }
 
-void createAndOutputfileInfo(fileInfo fileInfoInfo, double length) {
+void createAndOutputfileInfo(fileInfo fileInfoInfo, double length, vector<huffTableEntry> huffTableEntries) {
     // Strips away any extension from filename. If there isn't one, then just creates
     // a copy of the original filename.
     int pos = fileInfoInfo.fileName.find_last_of(".");
@@ -86,7 +86,18 @@ void createAndOutputfileInfo(fileInfo fileInfoInfo, double length) {
 
     string fileInfo = fileName + ".huf";
 
-    ofstream fout(fileInfo, ios::out);
+    ofstream fout(fileInfo, ios::out | ios::binary);
+
+	fout.write((char*)&fileInfoInfo.fileNameLength, sizeof fileInfoInfo.fileNameLength);
+	fout.write((char*)&fileInfo, fileInfo.length());
+	fout.write((char*)&fileInfoInfo.numberOfGlyphsInFile, sizeof fileInfoInfo.numberOfGlyphsInFile);
+	for (int i = 0; i < fileInfoInfo.numberOfGlyphsInFile; i++)
+	{
+		fout.write((char*)&huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
+		fout.write((char*)&huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
+		fout.write((char*)&huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
+	}
+	fout.write((char*)&fileInfoInfo.
 }
 
 int getAsciiValue(unsigned char c) {
@@ -282,5 +293,5 @@ void main() {
 
     // Output all necessary info to file
 
-//    createAndOutputfileInfo(fileInfo, fileInfo.fileStreamLength);
+//    createAndOutputfileInfo(fileInfo, fileInfo.fileStreamLength, huffTable);
 }

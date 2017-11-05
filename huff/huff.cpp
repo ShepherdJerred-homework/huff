@@ -221,8 +221,8 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
         string byteCode = map[asciiValue];
         std::reverse(byteCode.begin(), byteCode.end());
 
-        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
-        cout << "Byte Code: " << byteCode << endl << endl;
+//        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
+//        cout << "Byte Code: " << byteCode << endl << endl;
 
         s += byteCode;
     }
@@ -272,8 +272,8 @@ string encodeMessageToStringOfBytes(string &message) {
         unsigned char c = encodeByte(message.substr(i, 8));
 
         bytes += c;
-        cout << "Byte: " << c << endl;
-        cout << std::hex << "Hex Byte: " << (int) c << endl;
+//        cout << "Byte: " << c << endl;
+//        cout << std::hex << "Hex Byte: " << (int) c << endl;
     }
 //    std::reverse(bytes.begin(), bytes.end());
     cout << "Bytes: " << bytes << endl;
@@ -288,11 +288,13 @@ void createAndOutputFileInfo(FileInfo &fileInfo, vector<HuffTableEntry> &huffTab
 
     ofstream fout(fileNameWithoutExtension + ".huf", ios::out | ios::binary);
 
-    fout.write((char *) &fileInfo.fileNameLength, sizeof fileInfo.fileNameLength);
-    fout.write((char *) &fileInfo.fileName, fileInfo.fileName.size());
-    fout.write((char *) &fileInfo.numberOfGlyphsInFile, sizeof fileInfo.numberOfGlyphsInFile);
+    int numberOfTableEntries = huffTableEntries.size();
 
-    for (int i = 0; i < fileInfo.numberOfGlyphsInFile; i++) {
+    fout.write((char *) &fileInfo.fileNameLength, sizeof fileInfo.fileNameLength);
+    fout.write(fileInfo.fileName.c_str(), fileInfo.fileName.size());
+    fout.write((char *) &numberOfTableEntries, sizeof numberOfTableEntries);
+
+    for (int i = 0; i < numberOfTableEntries; i++) {
         fout.write((char *) &huffTableEntries[i].glyph, sizeof huffTableEntries[i].glyph);
         fout.write((char *) &huffTableEntries[i].leftPointer, sizeof &huffTableEntries[i].leftPointer);
         fout.write((char *) &huffTableEntries[i].rightPointer, sizeof &huffTableEntries[i].rightPointer);
@@ -308,7 +310,7 @@ void main() {
 //    cout << "Enter the fileName of a file to be read: ";
 //    getline(cin, fileToRead);
 
-    string fileName = "Test.txt";
+    string fileName = "letters.txt";
 
     FileInfo fileInfo;
     fileInfo.fileName = fileName;
@@ -323,4 +325,7 @@ void main() {
     string bytes = encodeMessageToStringOfBytes(message);
 
     createAndOutputFileInfo(fileInfo, huffTable, bytes);
+
+    fileInfo.fileStream.close();
+
 }

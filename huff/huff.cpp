@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <iomanip>
+#include <ctime>
 
 using std::map;
 using std::vector;
@@ -60,7 +61,7 @@ void minHeap(vector<HuffTableEntry> &fileInfo, int position, int heapSize) {
 }
 
 void
-generateByteCodes(vector<HuffTableEntry> &treeValues, map<char, string> &byteCodes, int position, string byteCode) {
+generateByteCodes(vector<HuffTableEntry> &treeValues, map<int, string> &byteCodes, int position, string byteCode) {
     if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1) {
         if (treeValues[position].leftPointer != -1) {
             generateByteCodes(treeValues, byteCodes, treeValues[position].leftPointer, (byteCode + "0"));
@@ -78,9 +79,9 @@ bool sortByFrequency(HuffTableEntry &lhs, HuffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
 }
 
-int getAsciiValue(unsigned char c) {
-    return (int) c;
-}
+//int getAsciiValue(unsigned char c) {
+//    return (int) c;
+//}
 
 // TODO close file
 // TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
@@ -100,16 +101,16 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
 
     // Putting values into a map and incrementing repeat offenders
     for (int i = 0; i < fileInfo.fileStreamLength; i++) {
-        unsigned char c[1];
-        fileInfo.fileStream.read((char *) c, 1);
+        int num = 0;
+        fileInfo.fileStream.read((char *)&num, 1);
         fileInfo.fileStream.seekg(0, 1);
 
-        int asciiValue = getAsciiValue(c[0]);
-        glyphFrequencies[asciiValue]++;
+        //int asciiValue = getAsciiValue(c[0]);
+        glyphFrequencies[num]++;
     }
 
     // Adding the eof character
-    glyphFrequencies[257] = 1;
+    glyphFrequencies[256] = 1;
 
     return glyphFrequencies;
 }
@@ -176,17 +177,17 @@ vector<HuffTableEntry> createHuffmanTable(FileInfo &fileInfo) {
     huffTable[0].leftPointer = 1;
     huffTable[0].rightPointer = firstFreeSlot;
 
-//    for (int i = 0; i < huffTable.size(); i++) {
-//        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
-//             << huffTable[i].leftPointer
-//             << " " << huffTable[i].rightPointer << endl;
-//    }
+    /*for (int i = 0; i < huffTable.size(); i++) {
+        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
+             << huffTable[i].leftPointer
+             << " " << huffTable[i].rightPointer << endl;
+    }*/
 
     return huffTable;
 }
 
-map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
-    map<char, string> byteCodes;
+map<int, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
+    map<int, string> byteCodes;
     string byteCode;
 
     generateByteCodes(huffTable, byteCodes, 0, byteCode);
@@ -205,18 +206,18 @@ map<char, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
  * @param map The map to encode with
  * @return An encoded string of 0's and 1's
  */
-string encodeMessageToStringOfBits(FileInfo &fileInfo, map<char, string> &map) {
+string encodeMessageToStringOfBits(FileInfo &fileInfo, map<int, string> &map) {
     fileInfo.fileStream.seekg(0, ios::beg);
 
     string s = "";
     for (int i = 0; i < fileInfo.fileStreamLength; i++) {
-        unsigned char c[1];
-        fileInfo.fileStream.read((char *) c, 1);
+        int num = 0;
+        fileInfo.fileStream.read((char *)&num, 1);
         fileInfo.fileStream.seekg(0, 1);
 
-        int asciiValue = getAsciiValue(c[0]);
+        //int asciiValue = getAsciiValue(num);
 
-        string byteCode = map[asciiValue];
+        string byteCode = map[num];
 //        std::reverse(byteCode.begin(), byteCode.end());
 
 //        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
@@ -313,11 +314,12 @@ void createAndOutputFileInfo(FileInfo &fileInfo, vector<HuffTableEntry> &huffTab
 
 void main() {
 
-//    string fileToRead;
-//    cout << "Enter the fileName of a file to be read: ";
-//    getline(cin, fileToRead);
+    string fileName;
+    cout << "Enter the fileName of a file to be read: ";
+    getline(cin, fileName);
 
-    string fileName = "KiTTY.exe";
+	clock_t start, end;
+	start = clock();
 
     FileInfo fileInfo;
     fileInfo.fileName = fileName;
@@ -325,7 +327,7 @@ void main() {
 
     loadFileContents(fileInfo);
     vector<HuffTableEntry> huffTable = createHuffmanTable(fileInfo);
-    map<char, string> encodingMap = generateByteCodeTable(huffTable);
+    map<int, string> encodingMap = generateByteCodeTable(huffTable);
 
     string message = encodeMessageToStringOfBits(fileInfo, encodingMap);
 
@@ -334,5 +336,9 @@ void main() {
     createAndOutputFileInfo(fileInfo, huffTable, bytes);
 
     fileInfo.fileStream.close();
+
+	end = clock();
+	cout << std::setprecision(1) << std::fixed;
+	cout << "The time was " << (double(end - start) / CLOCKS_PER_SEC) << " seconds." << endl;
 
 }

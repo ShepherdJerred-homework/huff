@@ -104,8 +104,6 @@ void loadFileContents(FileInfo &fileInfo) {
 map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
     map<int, int> glyphFrequencies;
 
-    fileInfo.fileStream.seekg(0, ios::beg);
-
     // Putting values into a map and incrementing repeat offenders
     for (int i = 0; i < fileInfo.fileStreamLength; i++) {
         int num = 0;
@@ -117,6 +115,9 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
 
     // Adding the eof character
     glyphFrequencies[256] = 1;
+
+	//return to beginning of file for later
+	fileInfo.fileStream.seekg(0, ios::beg);
 
     return glyphFrequencies;
 }
@@ -216,7 +217,6 @@ map<int, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
  * @return An encoded string of 0's and 1's
  */
 string encodeMessageToStringOfBits(FileInfo &fileInfo, map<int, string> &map) {
-    fileInfo.fileStream.seekg(0, ios::beg);
 
     string s = "";
     for (int i = 0; i < fileInfo.fileStreamLength; i++) {
@@ -224,13 +224,11 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<int, string> &map) {
         fileInfo.fileStream.read((char *)&num, 1);
         fileInfo.fileStream.seekg(0, 1);
 
-        string byteCode = map[num];
-        s += byteCode;
+		s += map[num];
     }
 
     // Add the eof character
-    string byteCode = map[256];
-    s += byteCode;
+	s += map[256];
 
     return s;
 }
@@ -274,10 +272,7 @@ string encodeMessageToStringOfBytes(string &message) {
             }
         }
 
-        unsigned char c = encodeByte(newMessage);
-
-        bytes += c;
-
+		bytes += encodeByte(newMessage);
     }
 
     return bytes;

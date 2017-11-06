@@ -1,3 +1,9 @@
+//huff.cpp
+//By Jerred Shepherd and Mack Peters
+//This program compresses a file using the huffman algorithm. The file can later be decompressed
+//by the corresponding puff program.
+
+
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -60,6 +66,10 @@ void minHeap(vector<HuffTableEntry> &fileInfo, int position, int heapSize) {
     }
 }
 
+//Recursive function that generates byte codes. If the table entry is a merge node (-1 as glyph), we then look for
+//left and right pointers. If the pointer goes left, add a 0 to the byte code, if it goes right, add a 1. Once we hit
+//a leaf node (glyph not -1) then attach the string to that glyph. Stored in a map of <int, string> where the int is the glyph
+//and the string is the bytecode. Ints are necessary because 256 is EOF and cannot be represented as a char.
 void
 generateByteCodes(vector<HuffTableEntry> &treeValues, map<int, string> &byteCodes, int position, string byteCode) {
     if (treeValues[position].leftPointer != -1 || treeValues[position].rightPointer != -1) {
@@ -79,12 +89,7 @@ bool sortByFrequency(HuffTableEntry &lhs, HuffTableEntry &rhs) {
     return lhs.frequency < rhs.frequency;
 }
 
-//int getAsciiValue(unsigned char c) {
-//    return (int) c;
-//}
-
-// TODO close file
-// TODO map file into memory (https://stackoverflow.com/questions/15138353/how-to-read-a-binary-file-into-a-vector-of-unsigned-chars)
+//Gets file contents and also determines how big the file is.
 void loadFileContents(FileInfo &fileInfo) {
     fileInfo.fileStream = ifstream(fileInfo.fileName, ios::in | ios::binary);
 
@@ -94,6 +99,8 @@ void loadFileContents(FileInfo &fileInfo) {
     fileInfo.fileStream.seekg(0, fileInfo.fileStream.beg);
 }
 
+//Reads through the file and stores how often a glyph appears.
+//Glyphs and values are stored in a map of <int,int>.
 map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
     map<int, int> glyphFrequencies;
 
@@ -105,7 +112,6 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
         fileInfo.fileStream.read((char *)&num, 1);
         fileInfo.fileStream.seekg(0, 1);
 
-        //int asciiValue = getAsciiValue(c[0]);
         glyphFrequencies[num]++;
     }
 
@@ -117,6 +123,11 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
 
 
 // TODO find better fileName
+//Creates a vector of HuffTableEntry to support creating a huffman table later on. Table must be
+//the number of glpyhs in file plus number of glyphs in file minus one to support
+//the huffman algorithm. Vector of correct size is created then we iterate through the map
+//of glyphs and frequencies and add those values to the slots in the array. It then sorts the array from
+//smallest to largest to allow the huffman algorithm to work in a later step.
 vector<HuffTableEntry> createSortedVectorFromFile(FileInfo &fileInfo) {
     map<int, int> glyphFrequencies = getGlyphFrequencies(fileInfo);
 
@@ -138,6 +149,14 @@ vector<HuffTableEntry> createSortedVectorFromFile(FileInfo &fileInfo) {
     return huffTableVector;
 }
 
+//Fills in the huffman table by following steps learned in class. We first mark the end of the heap
+//and the first free slot. Then we mark which of slots 1 and 2 in the vector have the lowest value. We 
+//move the marked lowest value to the first free slot, then move the end of the heap to the empty slot just
+//create by moving the lowest value. We then reheap to ensure that we maintain a min heap. Then we move the 
+//value in slot 0 to the end of the heap, and in slot 0 we create a merge node containing the value just moved
+//from the front of the heap as the left pointer and the value in the first free slot as the right pointer. We
+//reheap once more and then move the end of the heap to the left as to not include the node that was just moved
+//and the first free slot to the right to the next free slot.
 vector<HuffTableEntry> createHuffmanTable(FileInfo &fileInfo) {
     vector<HuffTableEntry> huffTable = createSortedVectorFromFile(fileInfo);
 
@@ -177,26 +196,16 @@ vector<HuffTableEntry> createHuffmanTable(FileInfo &fileInfo) {
     huffTable[0].leftPointer = 1;
     huffTable[0].rightPointer = firstFreeSlot;
 
-    /*for (int i = 0; i < huffTable.size(); i++) {
-        cout << i << ": " << huffTable[i].glyph << " " << huffTable[i].frequency << " "
-             << huffTable[i].leftPointer
-             << " " << huffTable[i].rightPointer << endl;
-    }*/
-
     return huffTable;
 }
 
+//Acts as an entry point to generate the byte codes. Implemented in order to keep other functions more organized
 map<int, string> generateByteCodeTable(vector<HuffTableEntry> &huffTable) {
     map<int, string> byteCodes;
     string byteCode;
 
     generateByteCodes(huffTable, byteCodes, 0, byteCode);
 
-//     Debug statement
-//    for (auto elem : byteCodes) {
-//        std::cout << elem.first << " " << std::hex << std::setfill('0') << std::setw(2) << std::uppercase << elem.second
-//                  << "\n";
-//    }
     return byteCodes;
 }
 
@@ -215,23 +224,14 @@ string encodeMessageToStringOfBits(FileInfo &fileInfo, map<int, string> &map) {
         fileInfo.fileStream.read((char *)&num, 1);
         fileInfo.fileStream.seekg(0, 1);
 
-        //int asciiValue = getAsciiValue(num);
-
         string byteCode = map[num];
-//        std::reverse(byteCode.begin(), byteCode.end());
-
-//        cout << "ASCII: " << (char) asciiValue << "|" << asciiValue << endl;
-//        cout << "Byte Code: " << byteCode << endl << endl;
-
         s += byteCode;
     }
 
     // Add the eof character
     string byteCode = map[256];
-//    std::reverse(byteCode.begin(), byteCode.end());
     s += byteCode;
 
-//    cout << "Encoded message:  " << s << endl;
     return s;
 }
 
@@ -274,18 +274,19 @@ string encodeMessageToStringOfBytes(string &message) {
             }
         }
 
-//        cout << newMessage << endl;
-
         unsigned char c = encodeByte(newMessage);
 
         bytes += c;
-//        cout << "Byte: " << c << endl;
-//        cout << std::hex << "Hex Byte: " << (int) c << endl;
+
     }
-//    cout << "Bytes: " << bytes << endl;
+
     return bytes;
 }
 
+//Creates the .huf version of the file.
+//First writes out the file name length, the file name itself, and then the number of table entries. It then
+//loops through the huffman table and prints out each glyph, left and right pointer in each slot. Lastly, it
+//writes out the entire compressed message.
 void createAndOutputFileInfo(FileInfo &fileInfo, vector<HuffTableEntry> &huffTableEntries, string &bytes) {
     // Strips away any extension from filename. If there isn't one, then just creates
     // a copy of the original filename.

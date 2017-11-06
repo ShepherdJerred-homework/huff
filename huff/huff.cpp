@@ -109,7 +109,7 @@ map<int, int> getGlyphFrequencies(FileInfo &fileInfo) {
     }
 
     // Adding the eof character
-    glyphFrequencies[257] = 1;
+    glyphFrequencies[256] = 1;
 
     return glyphFrequencies;
 }

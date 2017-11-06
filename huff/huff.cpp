@@ -266,17 +266,11 @@ string encodeMessageToStringOfBytes(string &message) {
     for (unsigned i = 0; i < message.length(); i += 8) {
 
         string newMessage = message.substr(i, 8);
-        if (newMessage == "") {
-            cout << newMessage;
-            continue;
-        }
-
         if (newMessage.length() < 8 && newMessage.length() > 0) {
             int numberNeeded = 8 - newMessage.length();
             for (int x = 0; x < numberNeeded; x++) {
                 newMessage += "0";
             }
-            break;
         }
 
 //        cout << newMessage << endl;
